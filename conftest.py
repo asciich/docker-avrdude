@@ -1,12 +1,5 @@
 # conftest.py for docker image testing
 
-# Setup minimal virtualenv for testing docker images
-
-#  virtualenv ve_dockertest
-#  source ./ve_dockertest/bin/activate
-#  pip install pytest
-#  pip install doc#
-
 import docker
 import pytest
 
