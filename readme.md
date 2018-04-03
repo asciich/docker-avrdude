@@ -10,3 +10,11 @@ Starting the container with the command below will allow access to the current w
 ```
 docker run --rm --privileged -v $(pwd):/local_dir/ -it asciich/ubuntu_avrdude /bin/bash
 ```
+
+## Test container
+
+To test the container run tox in the toplevel directory of this repository.
+
+```
+tox
+```
