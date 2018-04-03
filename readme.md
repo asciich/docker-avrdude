@@ -1,4 +1,4 @@
-# ubuntu_avrdude Container
+# avrdude Container
 
 This container contains avrdude used to programm microcontrollers.
 
