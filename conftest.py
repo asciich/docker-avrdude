@@ -1,7 +1,6 @@
 # conftest.py for docker image testing
 
 import docker
-import os
 import pytest
 
 
@@ -18,13 +17,15 @@ class DockerContainerFile():
         self._docker_container = docker_container
         self._path = path
 
-    def is_file(self):
-        try:
-            self._docker_container.check_output('test -f {}'.format(self._path))
+    @property
+    def exists(self):
+        if self.is_file:
             return True
-        except DockerContainerExecError as e:
-            pass
+        if self.is_directory:
+            return True
+        return False
 
+    @property
     def is_directory(self):
         try:
             self._docker_container.check_output('test -d {}'.format(self._path))
@@ -32,10 +33,43 @@ class DockerContainerFile():
         except DockerContainerExecError as e:
             return False
 
+    @property
+    def is_executable(self):
+        try:
+            self._docker_container.check_output('test  -x {}'.format(self._path))
+            return True
+        except DockerContainerExecError as e:
+            return False
+
+    @property
+    def is_file(self):
+        try:
+            self._docker_container.check_output('test -f {}'.format(self._path))
+            return True
+        except DockerContainerExecError as e:
+            return False
+
+class DockerContainerImage():
+
+    def __init__(self, container_image):
+        self._container_image = container_image
+
+    @property
+    def name(self):
+        image_name = self._container_image.tags[0]
+        image_name = image_name.split(':')[0]
+        return image_name
+
+    @property
+    def tag(self):
+        tag_name = self._container_image.tags[0]
+        tag_name = tag_name.split(':')[1]
+        return tag_name
+
 class DockerContainer():
 
-    def __init__(self, container_name):
-        self.name = container_name
+    def __init__(self, container_image):
+        self._image = container_image
         self._client = docker.from_env()
         self._container = None
 
@@ -51,11 +85,16 @@ class DockerContainer():
         :param command:
         :return:
         """
-        environ_paths = self.get_env('PATH').split(':')
-        for environ_path in environ_paths:
-            binary_path = os.path.join(environ_path, command)
-            if self.file(binary_path).is_file():
+        if command.startswith('/'):
+            command_file = self.file(command)
+            if command_file.is_executable:
                 return True
+        else:
+            for path in self.get_env('PATH').split(':'):
+                command_path = '{}/{}'.format(path, command)
+                command_file = self.file(command_path)
+                if command_file.is_executable:
+                    return True
         return False
 
     def file(self, path):
@@ -77,16 +116,24 @@ class DockerContainer():
     def id(self):
         return self._container.id
 
+    @property
+    def name(self):
+        return self._container.name
+
+    @property
+    def image(self):
+        return DockerContainerImage(self._container.image)
+
     def kill(self):
         self._container.kill()
 
     def run(self):
-        self._container = self._client.containers.run(self.name, self.default_command, detach=True)
+        self._container = self._client.containers.run(self._image, self.default_command, detach=True)
 
 
 @pytest.fixture(scope='module')
-def docker_container(container_name):
-    docker_container = DockerContainer(container_name)
+def docker_container(container_image):
+    docker_container = DockerContainer(container_image)
     docker_container.run()
     yield docker_container
     docker_container.kill()
